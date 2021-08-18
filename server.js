@@ -12,6 +12,14 @@ const auth = require('./auth.js');
 // the app object is instantiated on creation of the Express server.
 // to setup a middleware invoke app.use
 const app = express();
+const http = require('http').createServer(app);
+// const io = require('socket.io')(http);
+const io = require('socket.io')(http, {
+	cors: {
+		origin: '*',
+	},
+});
+
 app.set('view engine', 'pug');
 
 fccTesting(app); //For FCC testing purposes
@@ -35,6 +43,22 @@ myDB(async client => {
 
 	routes(app, myDataBase);
 	auth(app, myDataBase);
+
+	let currentUsers = 0;
+
+	//.on listens for a specific event, arg1: emitting event title, arg2: function of passed data
+	io.on('connection', socket => {
+		console.log('A user has connected');
+
+		++currentUsers;
+		io.emit('user count', currentUsers);
+
+		socket.on('disconnect', () => {
+			console.log('A user has disconnected');
+			--currentUsers;
+			io.emit('user count after disconnect', currentUsers);
+		});
+	});
 }).catch(e => {
 	app.route('/').get((req, res) => {
 		res.render('pug', {title: e, message: 'Unable to login'});
@@ -42,6 +66,7 @@ myDB(async client => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+// app.listen(PORT, () => { //app has been mounted onto the http server
+http.listen(PORT, () => {
 	console.log('Listening on port ' + PORT);
 });
